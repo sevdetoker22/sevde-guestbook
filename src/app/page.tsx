@@ -97,10 +97,10 @@ export default function Home() {
               Tanıştığımıza memnun oldum
             </div>
             <h1 className="text-balance text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
-              Merhaba, ben Sevde <span className="inline-block origin-bottom-right">👋</span>
+              Merhaba
             </h1>
             <p className="mt-7 max-w-2xl text-pretty text-base leading-8 text-slate-400 sm:text-lg sm:leading-9">
-              Acıbadem Üniversitesi Bilgisayar Mühendisliği öğrencisiyim. Yazılım geliştirme, veri bilimi ve yapay zekâ alanlarıyla ilgileniyorum. Yeni teknolojiler öğrenmeyi ve projeler geliştirmeyi seviyorum.
+              Ben Sevde. Acıbadem Üniversitesi Bilgisayar Mühendisliği öğrencisiyim. Yazılım geliştirme, veri bilimi ve yapay zekâ alanlarıyla ilgileniyorum. Yeni teknolojiler öğrenmeyi ve projeler geliştirmeyi seviyorum.
             </p>
             <div className="mt-8 flex flex-wrap gap-2.5" aria-label="İlgi alanları">
               {["Yazılım geliştirme", "Veri bilimi", "Yapay zekâ"].map((interest) => (
