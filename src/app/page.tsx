@@ -221,7 +221,7 @@ export default function Home() {
                   </div>
                 )}
                 {!isLoading && !loadError && messages.length === 0 && (
-                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-sm leading-6 text-slate-400">Henüz mesaj yok. İlk mesajı sen bırak.</div>
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-sm leading-6 text-slate-400">Henüz mesaj bulunmuyor.</div>
                 )}
                 {messages.map((item) => (
                   <article key={`${item.created_at}-${item.name}-${item.message}`} className="message-card rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
