@@ -1,34 +1,33 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type GuestbookMessage = {
-  id: number;
   name: string;
   message: string;
-  date: string;
+  created_at: string;
 };
 
-const initialMessages: GuestbookMessage[] = [
-  {
-    id: 1,
-    name: "Elif Yılmaz",
-    message: "Yeni projelerinde başarılar Sevde! Burayı takip etmek çok keyifli olacak.",
-    date: "18 Ekim 2026",
-  },
-  {
-    id: 2,
-    name: "Mert Kaya",
-    message: "Sade ve çok hoş bir başlangıç olmuş. Ellerine sağlık!",
-    date: "17 Ekim 2026",
-  },
-  {
-    id: 3,
-    name: "Zeynep Aksoy",
-    message: "Yapay zekâ yolculuğunda bol keşifli ve üretken günler dilerim.",
-    date: "15 Ekim 2026",
-  },
-];
+type StatusMessage = {
+  type: "success" | "error";
+  text: string;
+};
+
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("tr-TR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+function fetchMessages() {
+  return supabase
+    .from("messages")
+    .select("name, message, created_at")
+    .order("created_at", { ascending: false });
+}
 
 function ArrowIcon() {
   return (
@@ -47,34 +46,88 @@ function MessageIcon() {
 }
 
 export default function Home() {
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<GuestbookMessage[]>([]);
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [status, setStatus] = useState<StatusMessage | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function loadMessages() {
+    const { data, error } = await fetchMessages();
+
+    if (error) {
+      setLoadError(
+        "Mesajlar yüklenemedi. Supabase bağlantısını ve tablo izinlerini kontrol edin.",
+      );
+    } else {
+      setMessages(data ?? []);
+    }
+
+    setIsLoading(false);
+    return !error;
+  }
+
+  useEffect(() => {
+    let isActive = true;
+
+    void fetchMessages().then(({ data, error }) => {
+      if (!isActive) return;
+
+      if (error) {
+        setLoadError(
+          "Mesajlar yüklenemedi. Supabase bağlantısını ve tablo izinlerini kontrol edin.",
+        );
+      } else {
+        setMessages(data ?? []);
+      }
+      setIsLoading(false);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const cleanName = name.trim();
     const cleanMessage = message.trim();
 
-    if (!cleanName || !cleanMessage) return;
+    if (!cleanName || !cleanMessage) {
+      setStatus({ type: "error", text: "İsim ve mesaj alanlarını doldurun." });
+      return;
+    }
 
-    setMessages((currentMessages) => [
-      {
-        id: Date.now(),
-        name: cleanName,
-        message: cleanMessage,
-        date: new Intl.DateTimeFormat("tr-TR", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }).format(new Date()),
-      },
-      ...currentMessages,
-    ]);
+    setIsSubmitting(true);
+    setStatus(null);
+
+    const { error } = await supabase.from("messages").insert({
+      name: cleanName,
+      message: cleanMessage,
+    });
+
+    if (error) {
+      setStatus({
+        type: "error",
+        text: "Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     setName("");
     setMessage("");
+    const refreshed = await loadMessages();
+    setStatus({
+      type: refreshed ? "success" : "error",
+      text: refreshed
+        ? "Mesajınız başarıyla gönderildi."
+        : "Mesaj gönderildi ancak liste yenilenemedi.",
+    });
+    setIsSubmitting(false);
   }
 
   return (
@@ -141,8 +194,13 @@ export default function Home() {
                   </div>
                   <textarea id="message" name="message" required maxLength={280} rows={5} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Birkaç güzel söz bırak..." className="field min-h-32 resize-y" />
                 </div>
-                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition-colors hover:bg-violet-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 active:bg-violet-600">
-                  Mesaj Gönder <ArrowIcon />
+                {status && (
+                  <p className={`rounded-xl border px-4 py-3 text-sm leading-6 ${status.type === "error" ? "border-red-400/20 bg-red-400/[0.06] text-red-300" : "border-emerald-400/20 bg-emerald-400/[0.06] text-emerald-300"}`} role={status.type === "error" ? "alert" : "status"}>
+                    {status.text}
+                  </p>
+                )}
+                <button type="submit" disabled={isSubmitting} className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 transition-colors hover:bg-violet-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 active:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60">
+                  {isSubmitting ? "Gönderiliyor..." : "Mesaj Gönder"} {!isSubmitting && <ArrowIcon />}
                 </button>
               </div>
             </form>
@@ -152,15 +210,27 @@ export default function Home() {
                 <h3 className="text-sm font-medium text-slate-300">Son mesajlar</h3>
                 <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-xs text-slate-500">{messages.length} mesaj</span>
               </div>
-              <div className="space-y-3" aria-live="polite">
+              <div className="space-y-3" aria-live="polite" aria-busy={isLoading}>
+                {isLoading && (
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-sm text-slate-400">Mesajlar yükleniyor...</div>
+                )}
+                {!isLoading && loadError && (
+                  <div className="rounded-2xl border border-red-400/20 bg-red-400/[0.06] p-6" role="alert">
+                    <p className="text-sm leading-6 text-red-300">{loadError}</p>
+                    <button type="button" onClick={() => { setIsLoading(true); setLoadError(""); void loadMessages(); }} className="mt-3 text-sm font-medium text-red-200 underline underline-offset-4">Tekrar dene</button>
+                  </div>
+                )}
+                {!isLoading && !loadError && messages.length === 0 && (
+                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 text-sm leading-6 text-slate-400">Henüz mesaj yok. İlk mesajı sen bırak.</div>
+                )}
                 {messages.map((item) => (
-                  <article key={item.id} className="message-card rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
+                  <article key={`${item.created_at}-${item.name}-${item.message}`} className="message-card rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5 sm:p-6">
                     <div className="flex items-start gap-4">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-slate-800 text-sm font-semibold text-violet-200">{item.name.charAt(0).toLocaleUpperCase("tr-TR")}</div>
                       <div className="min-w-0 flex-1">
                         <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                           <h4 className="truncate text-sm font-semibold text-slate-100">{item.name}</h4>
-                          <time className="text-xs text-slate-600">{item.date}</time>
+                          <time dateTime={item.created_at} className="text-xs text-slate-600">{formatDate(item.created_at)}</time>
                         </div>
                         <p className="break-words text-sm leading-6 text-slate-400">{item.message}</p>
                       </div>
